@@ -2,8 +2,8 @@ import { assets } from "../assets/assets";
 
 const Footer = () => {
   return (
-    <footer className="px-36 mt-40 w-full text-gray-300">
-      <div className="flex justify-between w-full gap-10 border-b border-gray-500/30 pb-14">
+    <footer className="px-6 md:px-16 xl:px-36 mt-24 md:mt-40 w-full text-gray-300">
+      <div className="flex flex-col md:flex-row justify-between w-full gap-10 border-b border-gray-500/30 pb-14">
         <div className="max-w-96">
           <img src={assets.logo} alt="logo" className="w-36 h-auto" />
           <p className="mt-6 text-sm">
@@ -17,7 +17,7 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="flex items-start justify-end gap-40">
+        <div className="flex items-start md:justify-end gap-16 xl:gap-40">
           <div>
             <h2 className="font-semibold mb-5 text-white">Company</h2>
             <ul className="text-sm space-y-2">

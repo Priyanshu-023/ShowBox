@@ -1,14 +1,10 @@
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowRightIcon, ClockIcon } from "lucide-react";
 import toast from "react-hot-toast";
-import {
-  assets,
-  dummyDateTimeData,
-  dummyShowsData,
-  dummyBookingData,
-} from "../assets/assets";
+import { assets } from "../assets/assets";
 import BlurCircle from "../components/BlurCircle";
+import { AppDataContext } from "../context/AppContext";
 
 const groupRows = [
   ["A", "B"],
@@ -18,28 +14,62 @@ const groupRows = [
   ["I", "J"],
 ];
 
-const PRICE_PER_SEAT = 200;
-
 const SeatLayout = () => {
   const { id, date } = useParams();
   const navigate = useNavigate();
 
-  const movie = dummyShowsData.find((show) => show._id === id);
-  const timings = dummyDateTimeData[date] || [];
+  const {axios,getToken,user} = useContext(AppDataContext)
 
-  const [prevDate, setPrevDate] = useState(date);
-  const [selectedTime, setSelectedTime] = useState(timings[0] || null);
+  const [show, setShow] = useState(null)
+  const [selectedTime, setSelectedTime] = useState(null);
   const [selectedSeats, setSelectedSeats] = useState([]);
+  const [occupiedSeats, setOccupiedSeats] = useState([])
 
-  if (date !== prevDate) {
-    setPrevDate(date);
+  const timings = show?.dateTime?.[date] || [];
+
+  const getShow = async () => {
+    try {
+      const { data } = await axios.get(`/api/show/${id}`)
+      if (data.success) setShow(data)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const getOccupiedSeats = async ()=>{
+    try {
+      const {data} = await axios.get(`/api/bookings/seats/${selectedTime.showId}`)
+      if(data.success){
+        setOccupiedSeats(data.occupiedSeats)
+      }else{
+        toast.error(data.message)
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  useEffect(() => {
+    getShow()
+  }, [id])
+
+  useEffect(()=>{
+    if(selectedTime){
+       getOccupiedSeats()
+    }
+  },[selectedTime])
+
+  useEffect(() => {
     setSelectedTime(timings[0] || null);
     setSelectedSeats([]);
-  }
+  }, [date, show]);
 
   const handleSeatClick = (seatId) => {
     if (!selectedTime) {
       return toast("Please select a time first");
+    }
+    if (occupiedSeats.includes(seatId)) {
+      return toast("This seat is already booked");
     }
     if (!selectedSeats.includes(seatId) && selectedSeats.length >= 5) {
       return toast("You can only select up to 5 seats");
@@ -52,16 +82,20 @@ const SeatLayout = () => {
   };
 
   const renderSeatRow = (row) => (
-    <div key={row} className="flex gap-2 mt-2">
+    <div key={row} className="flex gap-1 sm:gap-2 mt-2">
       {Array.from({ length: 9 }, (_, i) => {
         const seatId = `${row}${i + 1}`;
         const isSelected = selectedSeats.includes(seatId);
+        const isOccupied = occupiedSeats.includes(seatId);
         return (
           <button
             key={seatId}
+            disabled={isOccupied}
             onClick={() => handleSeatClick(seatId)}
-            className={`h-8 w-8 rounded border text-xs transition cursor-pointer ${
-              isSelected
+            className={`h-6 w-6 sm:h-8 sm:w-8 rounded border text-[9px] sm:text-xs transition cursor-pointer ${
+              isOccupied
+                ? "bg-gray-600 border-gray-600 text-gray-400 cursor-not-allowed"
+                : isSelected
                 ? "bg-primary border-primary text-white"
                 : "border-primary/60 text-gray-300 hover:border-primary"
             }`}
@@ -73,12 +107,14 @@ const SeatLayout = () => {
     </div>
   );
 
+  
+
   return (
-    <div className="relative flex flex-col md:flex-row px-6 md:px-16 lg:px-40 pt-30 pb-20 min-h-[80vh]">
+    <div className="relative flex flex-col lg:flex-row px-6 md:px-16 2xl:px-40 pt-30 pb-20 min-h-[80vh]">
       <BlurCircle top="150px" left="0px" />
       <BlurCircle bottom="0px" right="0px" />
 
-      <div className="w-60 h-max bg-primary/10 border border-primary/20 rounded-lg py-10">
+      <div className="w-full lg:w-60 shrink-0 h-max bg-primary/10 border border-primary/20 rounded-lg py-10">
         <p className="text-lg font-semibold px-6">Available Timings</p>
         <div className="mt-5 space-y-1">
           {timings.map((item) => (
@@ -103,7 +139,7 @@ const SeatLayout = () => {
         </div>
       </div>
 
-      <div className="relative flex-1 flex flex-col items-center mt-16 md:mt-0">
+      <div className="relative flex-1 flex flex-col items-center mt-16 lg:mt-0">
         <h1 className="text-2xl font-semibold">Select your seat</h1>
 
         <img src={assets.screenImage} alt="screen" className="mt-10" />
@@ -114,7 +150,7 @@ const SeatLayout = () => {
             {groupRows[0].map((row) => renderSeatRow(row))}
           </div>
 
-          <div className="grid grid-cols-2 gap-x-11 gap-y-6 mt-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-x-11 gap-y-6 mt-6">
             {groupRows.slice(1).map((group, index) => (
               <div key={index} className="flex flex-col items-center">
                 {group.map((row) => renderSeatRow(row))}
@@ -124,7 +160,8 @@ const SeatLayout = () => {
         </div>
 
         <button
-          onClick={() => {
+          onClick={async () => {
+            if(!user) return toast("Please login to proceed")
             if (!selectedTime) {
               return toast("Please select a time first");
             }
@@ -132,17 +169,22 @@ const SeatLayout = () => {
               return toast("Please select at least one seat");
             }
 
-            dummyBookingData.unshift({
-              show: {
-                movie,
-                showDateTime: selectedTime.time,
-              },
-              amount: selectedSeats.length * PRICE_PER_SEAT,
-              bookedSeats: selectedSeats,
-            });
+            try {
+              const { data } = await axios.post(
+                "/api/bookings/create",
+                { showId: selectedTime.showId, selectedSeats },
+                { headers: { Authorization: `Bearer ${await getToken()}` } }
+              );
 
-            navigate("/mybookings");
-            window.scrollTo(0, 0);
+              if (!data.success) {
+                return toast.error(data.message);
+              }
+
+              window.location.href = data.url
+            } catch (error) {
+              console.log(error);
+              toast.error("Booking failed, please try again");
+            }
           }}
           className="flex items-center gap-1 mt-20 px-10 py-3 text-sm bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer"
         >

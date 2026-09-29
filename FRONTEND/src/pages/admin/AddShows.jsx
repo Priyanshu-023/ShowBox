@@ -1,17 +1,41 @@
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { CalendarIcon, CheckIcon, StarIcon, XIcon } from "lucide-react";
 import toast from "react-hot-toast";
-import { dummyShowsData } from "../../assets/assets";
 import BlurCircle from "../../components/BlurCircle";
+import { AppDataContext } from "../../context/AppContext";
 
 const formatVotes = (count) =>
   count >= 1000 ? (count / 1000).toFixed(1) + "k" : count;
 
 const AddShows = () => {
+  const [nowPlayingMovies, setNowPlayingMovies] = useState([])
   const [selectedMovie, setSelectedMovie] = useState(null);
   const [showPrice, setShowPrice] = useState("");
   const [dateTimeInput, setDateTimeInput] = useState("");
   const [dateTimeSelection, setDateTimeSelection] = useState({});
+  const [addingShow, setAddingShow] = useState(false);
+
+  const {axios, getToken , user, imageBaseUrl } = useContext(AppDataContext)
+
+  const fetchNowPlayingMovies = async()=>{
+    try {
+      const {data} = await axios.get('/api/show/now-playing',{
+        headers : {Authorization : `Bearer ${await getToken()}`}
+      })
+      if(data.success){
+        setNowPlayingMovies(data.movies)
+      }
+    } catch (error) {
+      console.error('Error Fetching Movies',error)
+    }
+  }
+
+  useEffect(()=>{
+    if(user){
+      fetchNowPlayingMovies();
+    }  
+  },[user])
+
 
   const handleDateTimeAdd = () => {
     if (!dateTimeInput) return;
@@ -36,16 +60,52 @@ const AddShows = () => {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedMovie) return toast.error("Please select a movie");
     if (!showPrice) return toast.error("Please enter show price");
     if (Object.keys(dateTimeSelection).length === 0)
       return toast.error("Please select at least one show time");
 
-    toast.success("Show added successfully");
-    setSelectedMovie(null);
-    setShowPrice("");
-    setDateTimeSelection({});
+    try {
+      setAddingShow(true);
+
+      const showsInput = [];
+
+      for (const date in dateTimeSelection) {
+        const time = dateTimeSelection[date];
+
+        const oneEntry = {
+          date: date,
+          time: time,
+        };
+
+        showsInput.push(oneEntry);
+      }
+
+      const payload = {
+        movieId: selectedMovie,
+        showsInput: showsInput,
+        showPrice: showPrice,
+      };
+
+      const { data } = await axios.post("/api/show/add-show", payload, {
+        headers: { Authorization: `Bearer ${await getToken()}` },
+      });
+
+      if (data.success) {
+        toast.success("Show added successfully");
+        setSelectedMovie(null);
+        setShowPrice("");
+        setDateTimeSelection({});
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("An error occurred. Please try again.");
+    }
+
+    setAddingShow(false);
   };
 
   return (
@@ -60,12 +120,12 @@ const AddShows = () => {
       <p className="mt-10 text-lg font-medium">Now Playing Movies</p>
 
       <div className="flex gap-5 mt-4 overflow-x-auto pt-4 pb-4 pl-2">
-        {dummyShowsData.map((movie) => {
-          const isSelected = selectedMovie === movie._id;
+        {nowPlayingMovies.map((movie) => {
+          const isSelected = selectedMovie === movie.id;
           return (
             <div
-              key={movie._id}
-              onClick={() => setSelectedMovie(isSelected ? null : movie._id)}
+              key={movie.id}
+              onClick={() => setSelectedMovie(isSelected ? null : movie.id)}
               className={`group relative shrink-0 w-44 cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:z-10 ${
                 selectedMovie && !isSelected ? "opacity-40" : "opacity-100"
               }`}
@@ -76,7 +136,7 @@ const AddShows = () => {
                 }`}
               >
                 <img
-                  src={movie.poster_path}
+                  src={`${imageBaseUrl}${movie.poster_path}`}
                   alt={movie.title}
                   className="w-44 h-64 object-cover transition-transform duration-300 group-hover:scale-110"
                 />
@@ -126,7 +186,7 @@ const AddShows = () => {
 
       <div className="mt-8">
         <p className="text-lg font-medium">Select Date and Time</p>
-        <div className="flex items-center gap-3 mt-2">
+        <div className="flex flex-wrap items-center gap-3 mt-2">
           <div className="flex items-center gap-2 border border-gray-600 rounded-md pl-3 pr-2 py-2 focus-within:border-primary transition-colors">
             <CalendarIcon className="w-4 h-4 text-gray-400 shrink-0" />
             <input
@@ -177,7 +237,7 @@ const AddShows = () => {
       </div>
 
       <button
-        onClick={handleSubmit}
+        onClick={handleSubmit} disabled={addingShow}
         className="mt-8 bg-primary hover:bg-primary-dull transition rounded-md px-8 py-2.5 font-medium cursor-pointer"
       >
         Add Show

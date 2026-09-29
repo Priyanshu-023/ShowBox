@@ -1,3 +1,6 @@
+import { useContext } from "react";
+import { AppDataContext } from "../context/AppContext";
+
 const timeFormat = (minutes) => {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
@@ -27,14 +30,15 @@ const dateFormat = (dateString) => {
 
 const MyBookingCard = ({ booking }) => {
   const { movie, showDateTime } = booking.show;
+  const {imageBaseUrl} = useContext(AppDataContext)
 
   return (
-    <div className="flex justify-between p-4 h-40 w-240 bg-primary/8 border border-primary/20 rounded-lg">
-      <div className="flex gap-4">
+    <div className="flex flex-col sm:flex-row justify-between gap-4 p-4 sm:h-40 w-full max-w-240 bg-primary/8 border border-primary/20 rounded-lg">
+      <div className="flex flex-col sm:flex-row gap-4">
         <img
-          src={movie.poster_path}
+          src={imageBaseUrl+movie.poster_path}
           alt={movie.title}
-          className="w-46 h-32 rounded-lg object-cover object-top"
+          className="w-full sm:w-46 h-40 sm:h-32 shrink-0 rounded-lg object-cover object-top"
         />
         <div className="flex flex-col justify-between">
           <div>
@@ -47,11 +51,21 @@ const MyBookingCard = ({ booking }) => {
         </div>
       </div>
 
-      <div className="flex flex-col items-end justify-between">
-        <p className="text-2xl font-semibold">
-          <span className="text-base">₹</span>
-          {booking.amount}
-        </p>
+      <div className="flex sm:flex-col items-center sm:items-end justify-between">
+        <div className="flex items-center gap-4">
+          <p className="text-2xl font-semibold">
+            <span className="text-base">₹</span>
+            {booking.amount}
+          </p>
+          {!booking.isPaid && booking.paymentLink && (
+            <a
+              href={booking.paymentLink}
+              className="bg-primary px-4 py-1.5 text-sm rounded-full font-medium cursor-pointer"
+            >
+              Pay Now
+            </a>
+          )}
+        </div>
         <div className="text-sm text-right">
           <p>
             Total Tickets:{" "}

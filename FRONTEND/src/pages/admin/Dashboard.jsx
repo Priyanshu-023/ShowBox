@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { CircleDollarSign, PlayCircleIcon, StarIcon, UsersIcon } from "lucide-react";
-import { assets, dummyDashboardData } from "../../assets/assets";
+import { assets } from "../../assets/assets";
 import Loading from "../../components/Loading";
 import BlurCircle from "../../components/BlurCircle";
+import { AppDataContext } from "../../context/AppContext";
+import toast from "react-hot-toast";
 
 const dateFormat = (dateString) => {
   const date = new Date(dateString);
@@ -30,14 +32,29 @@ const Dashboard = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDashboardData(dummyDashboardData);
-      setIsLoading(false);
-    }, 500);
+  const {axios, getToken, user, imageBaseUrl} = useContext(AppDataContext);
 
-    return () => clearTimeout(timer);
-  }, []);
+  const fetchDashboardData = async()=>{
+    try {
+      const {data} = await axios.get('/api/admin/dashboard' ,
+        {headers : {Authorization : `Bearer ${await getToken()}`}}
+      )
+      if(data.success){
+        setDashboardData(data.dashboardData)
+        setIsLoading(false);
+      }else{
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error("Error Fetching dashboard data", error)
+    }
+  }
+
+  useEffect(() => {
+   if(user){
+    fetchDashboardData();
+   }
+  }, [user]);
 
   const dashboardCards = [
     {
@@ -77,7 +94,7 @@ const Dashboard = () => {
         {dashboardCards.map((card) => (
           <div
             key={card.title}
-            className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-md px-6 py-4 min-w-52"
+            className="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-md px-6 py-4 w-full sm:w-auto sm:min-w-52"
           >
             <div>
               <p className="text-gray-400 text-sm">{card.title}</p>
@@ -94,14 +111,14 @@ const Dashboard = () => {
 
       <p className="mt-10 text-lg font-medium">Active Shows</p>
 
-      <div className="flex flex-wrap gap-6 mt-4">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-4 sm:gap-6 mt-4">
         {dashboardData.activeShows.map((show) => (
           <div
             key={show._id}
-            className="w-52 bg-primary/10 border border-primary/20 rounded-lg overflow-hidden hover:-translate-y-1 transition duration-300"
+            className="w-full sm:w-52 bg-primary/10 border border-primary/20 rounded-lg overflow-hidden hover:-translate-y-1 transition duration-300"
           >
             <img
-              src={show.movie.poster_path}
+              src={`${imageBaseUrl}${show.movie.poster_path}`}
               alt={show.movie.title}
               className="h-60 w-full object-cover object-top"
             />
