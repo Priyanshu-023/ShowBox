@@ -1,6 +1,7 @@
 const Booking = require("../models/booking.models");
 const Show = require("../models/show.models");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const { inngest } = require('../inngest/index.js');
 
 
 const checkSeatAvailability = async(showId, selectedSeat)=>{
